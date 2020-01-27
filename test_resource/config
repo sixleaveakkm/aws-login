@@ -1,0 +1,11 @@
+[dummy]
+region = us-east-1
+output = json
+something_else = test
+
+[dummy-with-role]
+mfa_serial = arn-dummy-mfa
+duration = 43200
+source_profile = dummy
+role_arn = arn-dummy-role
+
