@@ -31,3 +31,21 @@ func getAccountId(profile string) string {
 	fmt.Println(result)
 	return *result.Account
 }
+
+func getMFAPrefix(profile string) string {
+	accountId := getAccountId(profile)
+	if accountId != "" {
+		return fmt.Sprintf("arn:aws:iam::%s:mfa/", accountId)
+	}
+	return ""
+}
+
+func getUserId(profile string) string {
+	svc := getSession(profile)
+	result, err := svc.GetCallerIdentity(&sts.GetCallerIdentityInput{})
+	if err != nil {
+		return ""
+	}
+	fmt.Println(result)
+	return *result.UserId
+}

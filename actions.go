@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"strings"
 
+	mapset "github.com/deckarep/golang-set"
 	"github.com/urfave/cli/v2"
 )
 
@@ -14,11 +16,9 @@ func configAction(c *cli.Context) error {
 }
 
 func configBashComplete(c *cli.Context) {
-
-}
-
-func configMFABashComplete(c *cli.Context) {
-
+	for _, c := range c.App.Commands {
+		fmt.Println(c.Name)
+	}
 }
 
 func isSixDigit(code string) bool {
@@ -54,6 +54,62 @@ func login(c *cli.Context) error {
 	}
 }
 
-func loginBashComplete(c *cli.Context) {
+func getLastArgument(n int) string {
+	args := os.Args[1+n:]
+	l := len(args)
+	if l == 0 {
+		return ""
+	}
+	if l == 1 {
+		if args[0] == "--generate-bash-completion" {
+			return ""
+		} else {
+			return args[0]
+		}
+	}
+	if args[l-1] == "--generate-bash-completion" {
+		return args[l-2]
+	}
+	return args[l-1]
+}
 
+func loginBashComplete(c *cli.Context) {
+	last := getLastArgument(0)
+	if last == "" {
+		fmt.Println("config")
+		fmt.Println("-p")
+		fmt.Println("--help")
+		fmt.Println("--version")
+		return
+	}
+
+	if last == "-p" || last == "--profile" {
+		for p := range NewConfig().listAWSProfiles().Iter() {
+			fmt.Println(strings.ReplaceAll(p.(string), " ", "\\ "))
+		}
+		return
+	}
+
+	flagSet := mapset.NewSet()
+	for _, f := range c.FlagNames() {
+		flagSet.Add(f)
+	}
+	if !flagSet.Contains("profile") {
+		if last == "-" {
+			fmt.Println("p")
+		} else if last == "--" {
+			fmt.Println("profile")
+		} else {
+			fmt.Println("-p")
+		}
+	}
+	if !flagSet.Contains("default") {
+		if last == "-" {
+			fmt.Println("d")
+		} else if last == "--" {
+			fmt.Println("default")
+		} else {
+			fmt.Println("-d")
+		}
+	}
 }
