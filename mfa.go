@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -12,7 +13,7 @@ import (
 
 var MFACommand = &cli.Command{
 	Name:         MFA,
-	Usage:        "config mfa method, starts CUI if parameter not enough",
+	Usage:        "config mfa method",
 	Action:       configMFAAction,
 	BashComplete: configMFABashComplete,
 	Flags: []cli.Flag{
@@ -42,7 +43,8 @@ func configMFAAction(c *cli.Context) error {
 	configData, err := config.loadProfileData(profile)
 
 	if err != nil {
-		startMFACUI(configData)
+		// startMFACUI(configData)
+		os.Exit(1)
 		return nil
 	}
 	if configData.DurationSeconds == 0 || c.Int64(Duration) != DefaultDurationSeconds {
@@ -50,7 +52,8 @@ func configMFAAction(c *cli.Context) error {
 	}
 	serial := c.String(SerialNumber)
 	if serial == "" {
-		startMFACUI(configData)
+		// startMFACUI(configData)
+		os.Exit(1)
 	} else {
 		configData.SerialNumber = serial
 		config.backupProfile(profile, credentialsFile_)
@@ -59,9 +62,9 @@ func configMFAAction(c *cli.Context) error {
 	return nil
 }
 
-func startMFACUI(configData *ConfigDataWithCode) {
-	fmt.Println("start mfa cui")
-}
+// func startMFACUI(configData *ConfigDataWithCode) {
+// 	fmt.Println("start mfa cui")
+// }
 
 func getMFASession(input *ConfigDataWithCode) (*CredentialData, error) {
 	svc := getSession(input.Profile)
@@ -141,6 +144,8 @@ func configMFABashComplete(c *cli.Context) {
 					fmt.Println(mfaPrefix + getUserId(p))
 				}
 				fmt.Println(mfaPrefix)
+			} else {
+				fmt.Println("arn:aws:iam::")
 			}
 		}
 	}

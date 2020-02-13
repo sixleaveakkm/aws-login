@@ -48,7 +48,7 @@ func login(c *cli.Context) error {
 	_ = confSection.MapTo(&confData)
 
 	if confData.OriginProfile != "" {
-		return loginForRole()
+		return loginForRole(config, profile, code)
 	} else {
 		return loginForMFA(config, profile, code)
 	}

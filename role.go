@@ -3,15 +3,17 @@ package main
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/sts"
+	mapset "github.com/deckarep/golang-set"
 	"github.com/urfave/cli/v2"
 )
 
 var RoleCommand = &cli.Command{
 	Name:         Role,
-	Usage:        "config role method, starts CUI if parameter not enough",
+	Usage:        "config role method",
 	Action:       configRoleAction,
 	BashComplete: configRoleBashComplete,
 	Flags: []cli.Flag{
@@ -48,9 +50,9 @@ var RoleCommand = &cli.Command{
 	},
 }
 
-func startRoleCUI(configData *ConfigDataWithCode) {
-	fmt.Println("start role cui")
-}
+// func startRoleCUI(configData *ConfigDataWithCode) {
+// 	fmt.Println("start role cui")
+// }
 
 func configRoleAction(c *cli.Context) error {
 	config := NewConfig()
@@ -84,7 +86,8 @@ func configRoleAction(c *cli.Context) error {
 	}
 	serial := c.String(SerialNumber)
 	if serial == "" {
-		startRoleCUI(configData)
+		// startRoleCUI(configData)
+		os.Exit(1)
 	} else {
 		configData.SerialNumber = serial
 		config.backupProfile(profile, credentialsFile_)
@@ -94,6 +97,84 @@ func configRoleAction(c *cli.Context) error {
 }
 
 func configRoleBashComplete(c *cli.Context) {
+	last := getLastArgument(2)
+	if last == "-s" || last == "--source-profile" {
+		for p := range NewConfig().listAWSProfiles().Iter() {
+			fmt.Println(strings.ReplaceAll(p.(string), " ", "\\ "))
+		}
+		return
+	}
+
+	flagSet := mapset.NewSet()
+	for _, f := range c.FlagNames() {
+		flagSet.Add(f)
+	}
+
+	if last == "-n" || last == fmt.Sprintf("--%s", SerialNumber) {
+		if flagSet.Contains(SourceProfile) {
+			p := c.String(SourceProfile)
+			mfaPrefix := getMFAPrefix(p)
+			if mfaPrefix != "" {
+				userId := getUserId(p)
+
+				if userId != "" {
+					fmt.Println(mfaPrefix + getUserId(p))
+				}
+				fmt.Println(mfaPrefix)
+			} else {
+				fmt.Println("arn:aws:iam::")
+			}
+		}
+	}
+
+	if !flagSet.Contains(SourceProfile) {
+		if last == "-" {
+			fmt.Println("s")
+		} else if last == "--" {
+			fmt.Println(SourceProfile)
+		} else {
+			fmt.Println("-s")
+		}
+	}
+
+	if !flagSet.Contains(Profile) {
+		if last == "-" {
+			fmt.Println("p")
+		} else if last == "--" {
+			fmt.Println(Profile)
+		} else {
+			fmt.Println("-p")
+		}
+	}
+
+	if !flagSet.Contains(RoleArn) {
+		if last == "-" {
+			fmt.Println("r")
+		} else if last == "--" {
+			fmt.Println(RoleArn)
+		} else {
+			fmt.Println("-r")
+		}
+	}
+
+	if !flagSet.Contains(SerialNumber) {
+		if last == "-" {
+			fmt.Println("n")
+		} else if last == "--" {
+			fmt.Println(SerialNumber)
+		} else {
+			fmt.Println("-d")
+		}
+	}
+	if !flagSet.Contains(Duration) {
+		if last == "-" {
+			fmt.Println("t")
+		} else if last == "--" {
+			fmt.Println(Duration)
+		} else {
+			fmt.Println("-t")
+		}
+	}
 
 }
 
@@ -101,7 +182,7 @@ func getRoleSession(input *ConfigDataWithCode) (*CredentialData, error) {
 	if input.OriginProfile == "" {
 		return nil, fmt.Errorf("'origin_profile' is not present in %s", input.Profile)
 	}
-	svc := getSession(input.Profile)
+	svc := getSession(input.OriginProfile)
 	assumeRoleInput := &sts.AssumeRoleInput{
 		DurationSeconds: aws.Int64(input.DurationSeconds),
 		RoleArn:         &input.AssumeRoleArn,
@@ -122,6 +203,37 @@ func getRoleSession(input *ConfigDataWithCode) (*CredentialData, error) {
 	}, nil
 }
 
-func loginForRole() error {
+func loginForRole(config *Config, profile string, code string) error {
+	// section <profile> must exists
+	confSection, err := config.Conf.GetSection(profile)
+	if err != nil {
+		return NoProfileError
+	}
+	var confData ConfigData
+	_ = confSection.MapTo(&confData)
+
+	roleProfile := fmt.Sprintf("%s%s", confData.OriginProfile, excludeConfigPostfix)
+	_, err = config.Cred.GetSection(roleProfile)
+	if err != nil {
+		roleProfile = fmt.Sprintf("profile %s%s", profile, excludeConfigPostfix)
+		_, err = config.Cred.GetSection(roleProfile)
+		if err != nil {
+			return NoProfileError
+		}
+	}
+
+	confData.OriginProfile = roleProfile
+	input := &ConfigDataWithCode{
+		ConfigData: confData,
+		Profile:    profile,
+		Code:       code,
+	}
+
+	var out *CredentialData
+	out, err = getRoleSession(input)
+	if err != nil {
+		return fmt.Errorf("failed get mfa, %v\n", err)
+	}
+	config.saveCredential(out, profile)
 	return nil
 }

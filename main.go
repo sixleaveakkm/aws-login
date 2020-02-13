@@ -21,13 +21,13 @@ const (
 	DefaultDurationSeconds = 43200
 )
 
-var logger *log.Logger
+// var logger *log.Logger
 
 func init() {
 	ini.PrettyEqual = true
 	ini.PrettyFormat = false
 	setAWSFolderDefault()
-	logger = log.New(os.Stdout, "Logger: ", log.Ltime)
+	// logger = log.New(os.Stdout, "Logger: ", log.Ltime)
 }
 
 func main() {
@@ -59,7 +59,7 @@ func executor(args []string) {
 		Commands: []*cli.Command{
 			{
 				Name:  "config",
-				Usage: "config MFA or role method, starts CUI if parameter not enough",
+				Usage: "config MFA or role method",
 				Subcommands: []*cli.Command{
 					MFACommand,
 					RoleCommand,
