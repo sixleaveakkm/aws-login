@@ -3,11 +3,9 @@ package main
 import (
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/sts"
-	mapset "github.com/deckarep/golang-set"
 	"github.com/urfave/cli/v2"
 )
 
@@ -117,64 +115,4 @@ func loginForMFA(config *Config, profile string, code string) error {
 	}
 	config.saveCredential(out, profile)
 	return nil
-}
-
-func configMFABashComplete(c *cli.Context) {
-	last := getLastArgument(2)
-	if last == "-p" || last == "--profile" {
-		for p := range NewConfig().listAWSProfiles().Iter() {
-			fmt.Println(strings.ReplaceAll(p.(string), " ", "\\ "))
-		}
-		return
-	}
-
-	flagSet := mapset.NewSet()
-	for _, f := range c.FlagNames() {
-		flagSet.Add(f)
-	}
-
-	if last == "-n" || last == fmt.Sprintf("--%s", SerialNumber) {
-		if flagSet.Contains("profile") {
-			p := c.String("profile")
-			mfaPrefix := getMFAPrefix(p)
-			if mfaPrefix != "" {
-				userId := getUserId(p)
-
-				if userId != "" {
-					fmt.Println(mfaPrefix + getUserId(p))
-				}
-				fmt.Println(mfaPrefix)
-			} else {
-				fmt.Println("arn:aws:iam::")
-			}
-		}
-	}
-
-	if !flagSet.Contains("profile") {
-		if last == "-" {
-			fmt.Println("p")
-		} else if last == "--" {
-			fmt.Println("profile")
-		} else {
-			fmt.Println("-p")
-		}
-	}
-	if !flagSet.Contains(SerialNumber) {
-		if last == "-" {
-			fmt.Println("n")
-		} else if last == "--" {
-			fmt.Println(SerialNumber)
-		} else {
-			fmt.Println("-d")
-		}
-	}
-	if !flagSet.Contains(Duration) {
-		if last == "-" {
-			fmt.Println("t")
-		} else if last == "--" {
-			fmt.Println(Duration)
-		} else {
-			fmt.Println("-t")
-		}
-	}
 }

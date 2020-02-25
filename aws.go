@@ -32,12 +32,19 @@ func getAccountId(profile string) string {
 	return *result.Account
 }
 
-func getMFAPrefix(profile string) string {
+// getMFAString get maximum mfa string or its prefix
+func getMFAString(profile string) string {
 	accountId := getAccountId(profile)
-	if accountId != "" {
-		return fmt.Sprintf("arn:aws:iam::%s:mfa/", accountId)
+	userId := getUserId(profile)
+	res := "arn:aws:iam::"
+	if accountId == "" {
+		return res
 	}
-	return ""
+	res += accountId + ":mfa/"
+	if userId == "" {
+		return res
+	}
+	return res + userId
 }
 
 func getUserId(profile string) string {

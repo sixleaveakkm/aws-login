@@ -1,12 +1,17 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
+	"regexp"
+	"strings"
 
 	"github.com/urfave/cli/v2"
 	"gopkg.in/ini.v1"
 )
+
+const Version = "0.4"
 
 const (
 	Duration      = "duration"
@@ -21,13 +26,10 @@ const (
 	DefaultDurationSeconds = 43200
 )
 
-// var logger *log.Logger
-
 func init() {
 	ini.PrettyEqual = true
 	ini.PrettyFormat = false
 	setAWSFolderDefault()
-	// logger = log.New(os.Stdout, "Logger: ", log.Ltime)
 }
 
 func main() {
@@ -38,7 +40,7 @@ func executor(args []string) {
 	app := &cli.App{
 		Name:                 "aws-login",
 		Usage:                "login your aws cli",
-		Version:              "0.1",
+		Version:              Version,
 		EnableBashCompletion: true,
 		Flags: []cli.Flag{
 			&cli.StringFlag{
@@ -73,4 +75,40 @@ func executor(args []string) {
 	if err != nil {
 		log.Fatal(err)
 	}
+}
+
+func printWithExplain(v string, e string) {
+	escapedV := strings.Replace(v, ":", "\\:", -1)
+	escapedV = strings.Replace(escapedV, " ", "\\ ", -1)
+	if e == "" {
+		fmt.Println(escapedV)
+	} else {
+		fmt.Printf("%s:%s\n", escapedV, e)
+	}
+}
+
+// isSixDigit checks given string is a syntax valid mfa code
+func isSixDigit(code string) bool {
+	reg := regexp.MustCompile(`^\d{6}$`)
+	return reg.MatchString(code)
+}
+
+// getLastArgument get last not --generate-bash-completion argument for n's level sub-command
+func getLastArgument(level int) string {
+	args := os.Args[1+level:]
+	l := len(args)
+	if l == 0 {
+		return ""
+	}
+	if l == 1 {
+		if args[0] == "--generate-bash-completion" {
+			return ""
+		} else {
+			return args[0]
+		}
+	}
+	if args[l-1] == "--generate-bash-completion" {
+		return args[l-2]
+	}
+	return args[l-1]
 }

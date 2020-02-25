@@ -9,3 +9,9 @@ duration = 43200
 source_profile = dummy
 role_arn = arn-dummy-role
 
+[profile gen-by-aws]
+region = us-east-1
+output = json
+aws_access_key_id = DEFAULT_KEY_ID
+aws_secret_access_key = DEFAULT_ACCESS_KEY
+

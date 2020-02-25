@@ -3,11 +3,9 @@ package main
 import (
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/sts"
-	mapset "github.com/deckarep/golang-set"
 	"github.com/urfave/cli/v2"
 )
 
@@ -94,88 +92,6 @@ func configRoleAction(c *cli.Context) error {
 		config.saveConfig(configData, configFile_)
 	}
 	return nil
-}
-
-func configRoleBashComplete(c *cli.Context) {
-	last := getLastArgument(2)
-	if last == "-s" || last == "--source-profile" {
-		for p := range NewConfig().listAWSProfiles().Iter() {
-			fmt.Println(strings.ReplaceAll(p.(string), " ", "\\ "))
-		}
-		return
-	}
-
-	flagSet := mapset.NewSet()
-	for _, f := range c.FlagNames() {
-		flagSet.Add(f)
-	}
-
-	if last == "-n" || last == fmt.Sprintf("--%s", SerialNumber) {
-		if flagSet.Contains(SourceProfile) {
-			p := c.String(SourceProfile)
-			mfaPrefix := getMFAPrefix(p)
-			if mfaPrefix != "" {
-				userId := getUserId(p)
-
-				if userId != "" {
-					fmt.Println(mfaPrefix + getUserId(p))
-				}
-				fmt.Println(mfaPrefix)
-			} else {
-				fmt.Println("arn:aws:iam::")
-			}
-		}
-	}
-
-	if !flagSet.Contains(SourceProfile) {
-		if last == "-" {
-			fmt.Println("s")
-		} else if last == "--" {
-			fmt.Println(SourceProfile)
-		} else {
-			fmt.Println("-s")
-		}
-	}
-
-	if !flagSet.Contains(Profile) {
-		if last == "-" {
-			fmt.Println("p")
-		} else if last == "--" {
-			fmt.Println(Profile)
-		} else {
-			fmt.Println("-p")
-		}
-	}
-
-	if !flagSet.Contains(RoleArn) {
-		if last == "-" {
-			fmt.Println("r")
-		} else if last == "--" {
-			fmt.Println(RoleArn)
-		} else {
-			fmt.Println("-r")
-		}
-	}
-
-	if !flagSet.Contains(SerialNumber) {
-		if last == "-" {
-			fmt.Println("n")
-		} else if last == "--" {
-			fmt.Println(SerialNumber)
-		} else {
-			fmt.Println("-d")
-		}
-	}
-	if !flagSet.Contains(Duration) {
-		if last == "-" {
-			fmt.Println("t")
-		} else if last == "--" {
-			fmt.Println(Duration)
-		} else {
-			fmt.Println("-t")
-		}
-	}
-
 }
 
 func getRoleSession(input *ConfigDataWithCode) (*CredentialData, error) {
