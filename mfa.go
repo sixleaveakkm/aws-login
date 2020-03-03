@@ -1,11 +1,9 @@
 package main
 
 import (
+	"errors"
 	"fmt"
-	"os"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/sts"
 	"github.com/urfave/cli/v2"
 )
 
@@ -34,29 +32,45 @@ var MFACommand = &cli.Command{
 	},
 }
 
+// configMFAAction is action function for `aws-login config mfa`
 func configMFAAction(c *cli.Context) error {
-	config := NewConfig()
+	config := NewConfig(awsFoldPath)
 	profile := c.String("profile")
+	if !config.listPossibleProfiles().Contains(ShortSectionName(profile)) {
+		return errors.New("input profile is not valid")
+	}
 
-	configData, err := config.loadProfileData(profile)
-
+	configData, err := config.loadConfig(profile)
 	if err != nil {
 		// startMFACUI(configData)
-		os.Exit(1)
-		return nil
+		return fmt.Errorf("failed to load profile %s", profile)
 	}
-	if configData.DurationSeconds == 0 || c.Int64(Duration) != DefaultDurationSeconds {
-		configData.DurationSeconds = c.Int64(Duration)
+
+	inputDuration := c.Int64(Duration)
+	if inputDuration < 900 {
+		return fmt.Errorf("duration has minimum value 900 (30 minutes)")
 	}
+	if inputDuration > 129600 {
+		return fmt.Errorf("duration has maximum value 12900 (36 hours)")
+	}
+	configData.DurationSeconds = inputDuration
+
 	serial := c.String(SerialNumber)
 	if serial == "" {
-		// startMFACUI(configData)
-		os.Exit(1)
-	} else {
-		configData.SerialNumber = serial
-		config.backupProfile(profile, credentialsFile_)
-		config.saveConfig(configData, configFile_)
+		return fmt.Errorf("serial-number cannot be blank")
 	}
+
+	// SerialNumber exists, old mfa profile already set. over write
+	if configData.SerialNumber != "" {
+		configData.SerialNumber = serial
+		config.saveConfig(configData, profile, configFile_)
+		return nil
+	}
+	// SerialNumber doesn't exist, backup credential to "_no_mfa" and save
+	// if original profile contains "profile " prefix, no_mfa profile will also has this prefix.
+	configData.SerialNumber = serial
+	config.backupNoMFACredential(profile, credentialsFile_)
+	config.saveConfig(configData, profile, configFile_)
 	return nil
 }
 
@@ -64,26 +78,9 @@ func configMFAAction(c *cli.Context) error {
 // 	fmt.Println("start mfa cui")
 // }
 
-func getMFASession(input *ConfigDataWithCode) (*CredentialData, error) {
-	svc := getSession(input.Profile)
-	output, err := svc.GetSessionToken(&sts.GetSessionTokenInput{
-		DurationSeconds: aws.Int64(input.DurationSeconds),
-		SerialNumber:    aws.String(input.SerialNumber),
-		TokenCode:       aws.String(input.Code),
-	})
-	if err != nil {
-		return nil, err
-	}
-	return &CredentialData{
-		AccessKey:    *output.Credentials.AccessKeyId,
-		SecretKey:    *output.Credentials.SecretAccessKey,
-		SessionToken: *output.Credentials.SessionToken,
-	}, nil
-}
-
 // loginForMFA
 // <prof> must exists in config, <prof_no_mfa> or <profile prof_no_mfa> exists in credential
-func loginForMFA(config *Config, profile string, code string) error {
+func loginForMFA(config *Config, profile string, code string, toDefault bool) error {
 	profileNoMFA := fmt.Sprintf("%s%s", profile, excludeConfigPostfix)
 	_, err := config.Cred.GetSection(profileNoMFA)
 	if err != nil {
@@ -99,20 +96,25 @@ func loginForMFA(config *Config, profile string, code string) error {
 	var confData ConfigData
 	_ = confSection.MapTo(&confData)
 
-	input := &ConfigDataWithCode{
-		ConfigData: ConfigData{
-			SerialNumber:    confData.SerialNumber,
-			DurationSeconds: confData.DurationSeconds,
-		},
-		Profile: profileNoMFA,
-		Code:    code,
-	}
-
-	var out *CredentialData
-	out, err = getMFASession(input)
+	out, err := aws.GetMFASession(&GetMFASessionInput{
+		Profile:         profileNoMFA,
+		SerialNumber:    confData.SerialNumber,
+		DurationSeconds: confData.DurationSeconds,
+		Code:            code,
+	})
 	if err != nil {
 		return fmt.Errorf("failed get mfa, %v\n", err)
 	}
-	config.saveCredential(out, profile)
+	cred := &SessionCredential{
+		AccessKey:    out.AccessKey,
+		SecretKey:    out.SecretKey,
+		SessionToken: out.SessionToken,
+	}
+	config.saveCredential(cred, profile, credentialsFile_)
+
+	if toDefault {
+		config.saveConfig(&confData, "default", configFile_)
+		config.saveCredential(cred, "default", credentialsFile_)
+	}
 	return nil
 }

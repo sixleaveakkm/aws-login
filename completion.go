@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	mapset "github.com/deckarep/golang-set"
@@ -28,6 +29,41 @@ const (
 	TextConfRoleProfile       = "new profile name using role"
 )
 
+// getLastArgument get last not --generate-bash-completion argument for n's level sub-command
+func getLastArgument(level int) string {
+	args := os.Args[1+level:]
+	l := len(args)
+	if l == 0 {
+		return ""
+	}
+	if l == 1 {
+		if args[0] == "--generate-bash-completion" {
+			return ""
+		} else {
+			return args[0]
+		}
+	}
+	if args[l-1] == "--generate-bash-completion" {
+		return args[l-2]
+	}
+	return args[l-1]
+}
+
+// printWithExplain makes input into value explain pair.
+// It will print following prompt results when completion:
+//
+//     some result     | explanation for "some result"
+//
+func printWithExplain(v string, e string) {
+	escapedV := strings.Replace(v, ":", "\\:", -1)
+	escapedV = strings.Replace(escapedV, " ", "\\ ", -1)
+	if e == "" {
+		fmt.Println(escapedV)
+	} else {
+		fmt.Printf("%s:%s\n", escapedV, e)
+	}
+}
+
 // loginBashComplete, bash complete for `aws-login`
 func loginBashComplete(c *cli.Context) {
 	last := getLastArgument(0)
@@ -40,8 +76,8 @@ func loginBashComplete(c *cli.Context) {
 	}
 
 	if last == "-p" || last == "--profile" {
-		for p := range NewConfig().listAWSProfiles().Iter() {
-			fmt.Println(strings.ReplaceAll(p.(string), " ", "\\ "))
+		for k, v := range NewConfig(awsFoldPath).listMFAProfiles() {
+			printWithExplain(k, v)
 		}
 		return
 	}
@@ -80,7 +116,7 @@ func configBashComplete(_ *cli.Context) {
 func configMFABashComplete(c *cli.Context) {
 	last := getLastArgument(2)
 	if last == "-p" || last == "--profile" {
-		for p := range NewConfig().listAWSProfiles().Iter() {
+		for p := range NewConfig(awsFoldPath).listPossibleProfiles().Iter() {
 			printWithExplain(p.(string), "")
 		}
 		return
@@ -93,13 +129,11 @@ func configMFABashComplete(c *cli.Context) {
 
 	// if current position is serial number and profile is given
 	// try to return mfa string by fetch information for aws
-	//
-
 	if last == "-n" || last == fmt.Sprintf("--%s", SerialNumber) {
 		if flagSet.Contains("profile") {
 			p := c.String("profile")
 			// todo: possible session timeout if config same profile name twice
-			printWithExplain(getMFAString(p), "mfa string or prefix for given profile")
+			printWithExplain(aws.GetMFAString(p), "mfa string or prefix for given profile")
 		}
 		return
 	}
@@ -136,7 +170,7 @@ func configMFABashComplete(c *cli.Context) {
 func configRoleBashComplete(c *cli.Context) {
 	last := getLastArgument(2)
 	if last == "-s" || last == "--source-profile" {
-		for p := range NewConfig().listAWSProfiles().Iter() {
+		for p := range NewConfig(awsFoldPath).listPossibleProfiles().Iter() {
 			fmt.Println(strings.ReplaceAll(p.(string), " ", "\\ "))
 		}
 		return
@@ -151,7 +185,7 @@ func configRoleBashComplete(c *cli.Context) {
 		if flagSet.Contains(SourceProfile) {
 			p := c.String(SourceProfile)
 			// todo: possible session timeout if config same profile name twice
-			printWithExplain(getMFAString(p), "mfa string or prefix for given profile")
+			printWithExplain(aws.GetMFAString(p), "mfa string or prefix for given profile")
 		}
 		return
 	}

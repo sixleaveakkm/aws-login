@@ -1,12 +1,12 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/sts"
 	"github.com/urfave/cli/v2"
+	"gopkg.in/ini.v1"
 )
 
 var RoleCommand = &cli.Command{
@@ -53,73 +53,58 @@ var RoleCommand = &cli.Command{
 // }
 
 func configRoleAction(c *cli.Context) error {
-	config := NewConfig()
+	config := NewConfig(awsFoldPath)
 	profile := c.String("profile")
+	sourceProfile := c.String(SourceProfile)
+	if !config.listPossibleProfiles().Contains(ShortSectionName(sourceProfile)) {
+		return errors.New("input profile is not valid")
+	}
 
-	configData := &ConfigDataWithCode{
-		ConfigData: ConfigData{
-			SerialNumber:    c.String(SerialNumber),
-			DurationSeconds: c.Int64(Duration),
-			OriginProfile:   c.String(SourceProfile),
-			AssumeRoleArn:   c.String(RoleArn),
-		},
-		Profile: profile,
-		Code:    "",
+	configData := &ConfigData{
+		SerialNumber:    c.String(SerialNumber),
+		DurationSeconds: c.Int64(Duration),
+		SourceProfile:   c.String(SourceProfile),
+		AssumeRoleArn:   c.String(RoleArn),
+	}
+
+	if configData.DurationSeconds == 0 || c.Int64(Duration) != DefaultDurationSeconds {
+		configData.DurationSeconds = c.Int64(Duration)
 	}
 
 	// Check original profile, if original profile contains token (one time),
 	// maximum duration is 1 hour. start gui to confirm
-	originProfile, err := config.readSpecificCredential(configData.OriginProfile)
+	originProfile, err := config.loadCredential(configData.SourceProfile)
 	if err != nil {
-		fmt.Printf("source profile: (%s) doesn't exists", configData.OriginProfile)
+
+		fmt.Printf("source profile: (%s) doesn't exists", configData.SourceProfile)
 		os.Exit(1)
 		// startRoleCUI(configData)
 		// return nil
 	}
 	if originProfile.SessionToken != "" {
 		fmt.Printf("source profile is a temporary profile with maximum 1 hour")
+		configData.DurationSeconds = 3600
 	}
-	if configData.DurationSeconds == 0 || c.Int64(Duration) != DefaultDurationSeconds {
-		configData.DurationSeconds = c.Int64(Duration)
-	}
+
 	serial := c.String(SerialNumber)
 	if serial == "" {
 		// startRoleCUI(configData)
 		os.Exit(1)
 	} else {
 		configData.SerialNumber = serial
-		config.backupProfile(profile, credentialsFile_)
-		config.saveConfig(configData, configFile_)
+		config.saveConfig(configData, profile, configFile_)
 	}
 	return nil
 }
 
-func getRoleSession(input *ConfigDataWithCode) (*CredentialData, error) {
-	if input.OriginProfile == "" {
-		return nil, fmt.Errorf("'origin_profile' is not present in %s", input.Profile)
+func getRoleSession(input *GetAssumeRoleRoleInput) (*SessionCredential, error) {
+	if input.SourceProfile == "" {
+		return nil, fmt.Errorf("'origin_profile' is not present in %s", input.SourceProfile)
 	}
-	svc := getSession(input.OriginProfile)
-	assumeRoleInput := &sts.AssumeRoleInput{
-		DurationSeconds: aws.Int64(input.DurationSeconds),
-		RoleArn:         &input.AssumeRoleArn,
-		RoleSessionName: aws.String("cli"),
-	}
-	if input.SerialNumber != "" {
-		assumeRoleInput.SerialNumber = &input.SerialNumber
-		assumeRoleInput.TokenCode = &input.Code
-	}
-	output, err := svc.AssumeRole(assumeRoleInput)
-	if err != nil {
-		return nil, err
-	}
-	return &CredentialData{
-		AccessKey:    *output.Credentials.AccessKeyId,
-		SecretKey:    *output.Credentials.SecretAccessKey,
-		SessionToken: *output.Credentials.SessionToken,
-	}, nil
+	return aws.GetAssumeRoleSession(input)
 }
 
-func loginForRole(config *Config, profile string, code string) error {
+func loginForRole(config *Config, profile string, code string, toDefault bool) error {
 	// section <profile> must exists
 	confSection, err := config.Conf.GetSection(profile)
 	if err != nil {
@@ -128,28 +113,49 @@ func loginForRole(config *Config, profile string, code string) error {
 	var confData ConfigData
 	_ = confSection.MapTo(&confData)
 
-	roleProfile := fmt.Sprintf("%s%s", confData.OriginProfile, excludeConfigPostfix)
-	_, err = config.Cred.GetSection(roleProfile)
+	sProfile := confData.SourceProfile
+
+	var cred *ini.Section
+	cred, err = config.Cred.GetSection(sProfile)
 	if err != nil {
-		roleProfile = fmt.Sprintf("profile %s%s", profile, excludeConfigPostfix)
-		_, err = config.Cred.GetSection(roleProfile)
+		sProfile = fmt.Sprintf("profile %s%s", profile, excludeConfigPostfix)
+		cred, err = config.Cred.GetSection(sProfile)
 		if err != nil {
 			return NoProfileError
 		}
 	}
-
-	confData.OriginProfile = roleProfile
-	input := &ConfigDataWithCode{
-		ConfigData: confData,
-		Profile:    profile,
-		Code:       code,
+	if _, err = cred.GetKey("aws_session_token"); err == nil {
+		// session has token, get no_mfa profile
+		sProfile = fmt.Sprintf("%s%s", confData.SourceProfile, excludeConfigPostfix)
+		_, err = config.Cred.GetSection(sProfile)
+		if err != nil {
+			sProfile = fmt.Sprintf("profile %s%s", profile, excludeConfigPostfix)
+			_, err = config.Cred.GetSection(sProfile)
+			if err != nil {
+				return NoProfileError
+			}
+		}
 	}
 
-	var out *CredentialData
+	confData.SourceProfile = sProfile
+	input := &GetAssumeRoleRoleInput{
+		SourceProfile:   confData.SourceProfile,
+		AssumeRoleArn:   confData.AssumeRoleArn,
+		SerialNumber:    confData.SerialNumber,
+		DurationSeconds: 0,
+		Code:            code,
+	}
+
+	var out *SessionCredential
 	out, err = getRoleSession(input)
 	if err != nil {
 		return fmt.Errorf("failed get mfa, %v\n", err)
 	}
-	config.saveCredential(out, profile)
+	config.saveCredential(out, profile, credentialsFile_)
+
+	if toDefault {
+		config.saveConfig(&confData, "default", configFile_)
+		config.saveCredential(out, "default", credentialsFile_)
+	}
 	return nil
 }

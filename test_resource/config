@@ -1,13 +1,6 @@
 [dummy]
 region = us-east-1
 output = json
-something_else = test
-
-[dummy-with-role]
-mfa_serial = arn-dummy-mfa
-duration = 43200
-source_profile = dummy
-role_arn = arn-dummy-role
 
 [profile gen-by-aws]
 region = us-east-1
@@ -15,3 +8,18 @@ output = json
 aws_access_key_id = DEFAULT_KEY_ID
 aws_secret_access_key = DEFAULT_ACCESS_KEY
 
+[user-profile]
+region = us-east-1
+output = json
+
+[profile-exist]
+region = us-east-1
+output = json
+duration = 43200
+mfa_serial = arn:exist
+
+[user-role-2]
+mfa_serial = arn
+duration = 43200
+source_profile = user-profile
+role_arn = arn:dummy-role

@@ -5,13 +5,12 @@ import (
 	"log"
 	"os"
 	"regexp"
-	"strings"
 
 	"github.com/urfave/cli/v2"
 	"gopkg.in/ini.v1"
 )
 
-const Version = "0.4"
+const Version = "0.5"
 
 const (
 	Duration      = "duration"
@@ -26,9 +25,15 @@ const (
 	DefaultDurationSeconds = 43200
 )
 
+var (
+	aws AWS
+)
+
 func init() {
 	ini.PrettyEqual = true
 	ini.PrettyFormat = false
+
+	aws = AWSImpl{}
 	setAWSFolderDefault()
 }
 
@@ -56,7 +61,7 @@ func executor(args []string) {
 				Value:   false,
 			},
 		},
-		Action:       login,
+		Action:       loginAction,
 		BashComplete: loginBashComplete,
 		Commands: []*cli.Command{
 			{
@@ -77,14 +82,9 @@ func executor(args []string) {
 	}
 }
 
-func printWithExplain(v string, e string) {
-	escapedV := strings.Replace(v, ":", "\\:", -1)
-	escapedV = strings.Replace(escapedV, " ", "\\ ", -1)
-	if e == "" {
-		fmt.Println(escapedV)
-	} else {
-		fmt.Printf("%s:%s\n", escapedV, e)
-	}
+// configAction for `aws-login config` which only contains two sub-commands
+func configAction(c *cli.Context) error {
+	return cli.ShowAppHelp(c)
 }
 
 // isSixDigit checks given string is a syntax valid mfa code
@@ -93,22 +93,31 @@ func isSixDigit(code string) bool {
 	return reg.MatchString(code)
 }
 
-// getLastArgument get last not --generate-bash-completion argument for n's level sub-command
-func getLastArgument(level int) string {
-	args := os.Args[1+level:]
-	l := len(args)
-	if l == 0 {
-		return ""
+// login process the input, and handler to mfa's or role's login function
+// the input profile must exists in config file unless it is not set
+func loginAction(c *cli.Context) error {
+	profile := c.String(Profile)
+	code := c.Args().Get(0)
+	if !isSixDigit(code) {
+		return fmt.Errorf("input code must be 6 digit, got '%s'", code)
 	}
-	if l == 1 {
-		if args[0] == "--generate-bash-completion" {
-			return ""
-		} else {
-			return args[0]
+
+	config := NewConfig(awsFoldPath)
+	confSection, err := config.Conf.GetSection(profile)
+	if err != nil {
+		confSection, err = config.Conf.GetSection(fmt.Sprintf("profile %s", profile))
+		if err != nil {
+			scriptName := os.Args[0]
+			return fmt.Errorf("%q %w\nYou could try:\n\t%s config <mfa|role> ...\n to create config", profile, NoProfileError, scriptName)
 		}
 	}
-	if args[l-1] == "--generate-bash-completion" {
-		return args[l-2]
+	var confData ConfigData
+	_ = confSection.MapTo(&confData)
+
+	setToDefault := c.Bool("default")
+	if confData.SourceProfile != "" {
+		return loginForRole(config, profile, code, setToDefault)
+	} else {
+		return loginForMFA(config, profile, code, setToDefault)
 	}
-	return args[l-1]
 }
