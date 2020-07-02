@@ -142,7 +142,7 @@ func loginForRole(config *Config, profile string, code string, toDefault bool) e
 		SourceProfile:   confData.SourceProfile,
 		AssumeRoleArn:   confData.AssumeRoleArn,
 		SerialNumber:    confData.SerialNumber,
-		DurationSeconds: 0,
+		DurationSeconds: confData.DurationSeconds,
 		Code:            code,
 	}
 
