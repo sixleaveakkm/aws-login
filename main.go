@@ -100,7 +100,11 @@ func loginAction(c *cli.Context) error {
 	profile := c.String(Profile)
 	code := c.Args().Get(0)
 	if !isSixDigit(code) {
-		return fmt.Errorf("input code must be 6 digit, got '%s'", code)
+		if code == "" {
+			code = promptSixDigitCode()
+		} else {
+			return fmt.Errorf("input code must be 6 digit, got '%s'", code)
+		}
 	}
 
 	config := NewConfig(awsFoldPath)

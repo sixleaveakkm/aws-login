@@ -9,6 +9,7 @@ require (
 	github.com/deckarep/golang-set v1.7.1
 	github.com/golang/mock v1.4.1
 	github.com/kr/pretty v0.1.0 // indirect
+	github.com/logrusorgru/aurora v0.0.0-20200102142835-e9ef32dff381
 	github.com/smartystreets/goconvey v1.6.4 // indirect
 	github.com/stretchr/testify v1.4.0
 	github.com/urfave/cli/v2 v2.1.1
