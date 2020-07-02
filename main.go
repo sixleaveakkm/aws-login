@@ -13,14 +13,15 @@ import (
 const Version = "0.5"
 
 const (
-	Duration      = "duration"
-	Profile       = "profile"
-	SerialNumber  = "serial-number"
-	MFA           = "mfa"
-	Role          = "role"
-	SourceProfile = "source-profile"
-	RoleArn       = "role-arn"
-	NoMFA         = "no-mfa"
+	Duration           = "duration"
+	Profile            = "profile"
+	SerialNumber       = "serial-number"
+	SerialNumberInFile = "mfa_serial"
+	MFA                = "mfa"
+	Role               = "role"
+	SourceProfile      = "source-profile"
+	RoleArn            = "role-arn"
+	NoMFA              = "no-mfa"
 	// DefaultDurationSeconds 12 hours
 	DefaultDurationSeconds = 43200
 )
@@ -94,7 +95,7 @@ func isSixDigit(code string) bool {
 }
 
 // login process the input, and handler to mfa's or role's login function
-// the input profile must exists in config file unless it is not set
+// the input profile is checked previously
 func loginAction(c *cli.Context) error {
 	profile := c.String(Profile)
 	code := c.Args().Get(0)

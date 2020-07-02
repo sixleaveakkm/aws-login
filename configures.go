@@ -88,7 +88,7 @@ func (c Config) listMFAProfiles() (results map[string]string) {
 	confSections := c.Conf.Sections()
 	for _, section := range confSections {
 		name := ShortSectionName(section.Name())
-		_, err := section.GetKey(SerialNumber)
+		_, err := section.GetKey(SerialNumberInFile)
 		if err == nil {
 			if source, e := section.GetKey(SourceProfile); e == nil {
 				// contains "source-profile", is role with mfa
