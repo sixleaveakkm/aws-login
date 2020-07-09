@@ -41,8 +41,8 @@ type ConfigData struct {
 
 	SerialNumber    string `ini:"mfa_serial,omitempty"`
 	DurationSeconds int64  `ini:"duration,omitempty"`
-	SourceProfile   string `ini:"source_profile,omitempty"`
-	AssumeRoleArn   string `ini:"role_arn,omitempty"`
+	SourceProfile   string `ini:"c_source_profile,omitempty"`
+	AssumeRoleArn   string `ini:"c_role_arn,omitempty"`
 }
 
 var NoProfileError = errors.New("profile not found")
@@ -161,7 +161,7 @@ func (c *Config) loadConfig(profile string) (*ConfigData, error) {
 }
 
 func (c *Config) saveConfig(conf *ConfigData, profile string, configFile string) {
-	err := c.Conf.Section(profile).ReflectFrom(&conf)
+	err := c.Conf.Section(Profile + " " + profile).ReflectFrom(&conf)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)

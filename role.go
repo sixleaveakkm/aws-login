@@ -106,7 +106,7 @@ func getRoleSession(input *GetAssumeRoleRoleInput) (*SessionCredential, error) {
 
 func loginForRole(config *Config, profile string, code string, toDefault bool) error {
 	// section <profile> must exists
-	confSection, err := config.Conf.GetSection(profile)
+	confSection, err := config.Conf.GetSection(Profile + " " + profile)
 	if err != nil {
 		return NoProfileError
 	}

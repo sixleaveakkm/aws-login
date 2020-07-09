@@ -108,13 +108,10 @@ func loginAction(c *cli.Context) error {
 	}
 
 	config := NewConfig(awsFoldPath)
-	confSection, err := config.Conf.GetSection(profile)
+	confSection, err := config.Conf.GetSection(Profile + " " + profile)
 	if err != nil {
-		confSection, err = config.Conf.GetSection(fmt.Sprintf("profile %s", profile))
-		if err != nil {
-			scriptName := os.Args[0]
-			return fmt.Errorf("%q %w\nYou could try:\n\t%s config <mfa|role> ...\n to create config", profile, NoProfileError, scriptName)
-		}
+		scriptName := os.Args[0]
+		return fmt.Errorf("%q %w\nYou could try:\n\t%s config <mfa|role> ...\n to create config", profile, NoProfileError, scriptName)
 	}
 	var confData ConfigData
 	_ = confSection.MapTo(&confData)
