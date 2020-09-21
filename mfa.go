@@ -92,7 +92,7 @@ func loginForMFA(config *Config, profile string, code string, toDefault bool) er
 	}
 
 	// section <profile> must exists
-	confSection := config.Conf.Section(profile)
+	confSection := config.Conf.Section("profile " + profile)
 	var confData ConfigData
 	_ = confSection.MapTo(&confData)
 
