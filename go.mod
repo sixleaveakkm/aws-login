@@ -1,4 +1,4 @@
-module aws-login
+module github.com/sixleaveakkm/aws-login
 
 go 1.13
 
