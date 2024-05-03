@@ -3,18 +3,15 @@ module github.com/sixleaveakkm/aws-login
 go 1.13
 
 require (
-	github.com/aws/aws-sdk-go v1.34.0
-	github.com/cpuguy83/go-md2man/v2 v2.0.0 // indirect
+	github.com/aws/aws-sdk-go v1.52.1
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/deckarep/golang-set v1.7.1
-	github.com/golang/mock v1.4.1
+	github.com/deckarep/golang-set v1.8.0
+	github.com/golang/mock v1.6.0
 	github.com/kr/pretty v0.1.0 // indirect
-	github.com/logrusorgru/aurora v0.0.0-20200102142835-e9ef32dff381
-	github.com/smartystreets/goconvey v1.6.4 // indirect
-	github.com/stretchr/testify v1.5.1
-	github.com/urfave/cli/v2 v2.1.1
-	golang.org/x/text v0.3.2 // indirect
+	github.com/logrusorgru/aurora v2.0.3+incompatible
+	github.com/stretchr/testify v1.9.0
+	github.com/urfave/cli/v2 v2.27.2
 	gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127 // indirect
-	gopkg.in/ini.v1 v1.51.1
-	gopkg.in/yaml.v2 v2.2.7 // indirect
+	gopkg.in/ini.v1 v1.67.0
+	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
