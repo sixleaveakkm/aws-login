@@ -54,7 +54,7 @@ var RoleCommand = &cli.Command{
 
 func configRoleAction(c *cli.Context) error {
 	config := NewConfig(awsFoldPath)
-	profile := c.String("profile")
+	profile := getProfile(c)
 	sourceProfile := c.String(SourceProfile)
 	if !config.listPossibleProfiles().Contains(ShortSectionName(sourceProfile)) {
 		return errors.New("input profile is not valid")

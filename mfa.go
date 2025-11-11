@@ -35,7 +35,7 @@ var MFACommand = &cli.Command{
 // configMFAAction is action function for `aws-login config mfa`
 func configMFAAction(c *cli.Context) error {
 	config := NewConfig(awsFoldPath)
-	profile := c.String("profile")
+	profile := getProfile(c)
 	if !config.listPossibleProfiles().Contains(ShortSectionName(profile)) {
 		return errors.New("input profile is not valid")
 	}

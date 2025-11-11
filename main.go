@@ -10,7 +10,7 @@ import (
 	"gopkg.in/ini.v1"
 )
 
-const Version = "0.5"
+const Version = "0.6"
 
 const (
 	Duration           = "duration"
@@ -52,8 +52,8 @@ func executor(args []string) {
 			&cli.StringFlag{
 				Name:    "profile",
 				Aliases: []string{"p"},
-				Usage:   "mfa or role profile name to login, default is \"default\"",
-				Value:   "default",
+				Usage:   "mfa or role profile name to login, if AWS_PROFILE env found without `_no_mfa` suffix, use it as value, else set default is \"default\"",
+				Value:   "",
 			},
 			&cli.BoolFlag{
 				Name:    "default",
@@ -97,7 +97,7 @@ func isSixDigit(code string) bool {
 // login process the input, and handler to mfa's or role's login function
 // the input profile is checked previously
 func loginAction(c *cli.Context) error {
-	profile := c.String(Profile)
+	profile := getProfile(c)
 	code := c.Args().Get(0)
 	if !isSixDigit(code) {
 		if code == "" {

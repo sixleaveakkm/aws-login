@@ -4,7 +4,6 @@ go 1.13
 
 require (
 	github.com/aws/aws-sdk-go v1.52.1
-	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/deckarep/golang-set v1.8.0
 	github.com/golang/mock v1.6.0
 	github.com/kr/pretty v0.1.0 // indirect
